@@ -3,7 +3,7 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const { connectMongo, setupMongoEvents } = require('./db')
-const { validateEnv, parseCorsOrigins } = require('./utils/config')
+const { validateEnv, parseCorsOrigins, isOriginAllowed } = require('./utils/config')
 const { failure } = require('./utils/response')
 const logger = require('./utils/logger')
 const errorMiddleware = require('./middlewares/error.middleware')
@@ -19,12 +19,19 @@ setupMongoEvents()
 connectMongo()
 
 const app = express()
+const defaultAllowedOrigins = [
+  'https://sport-social-frontend.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]
 
 app.use(
   cors({
     origin(origin, callback) {
-      const allowedOrigins = parseCorsOrigins(process.env.CORS_ORIGIN)
-      if (!origin || allowedOrigins.includes(origin)) {
+      const allowedOrigins = [
+        ...new Set([...defaultAllowedOrigins, ...parseCorsOrigins(process.env.CORS_ORIGIN || '')]),
+      ]
+      if (!origin || isOriginAllowed(origin, allowedOrigins)) {
         return callback(null, true)
       }
       return callback(new Error(`CORS blocked: ${origin}`))
@@ -41,6 +48,11 @@ app.use('/api/user', userRouter)
 app.use('/api/post', postRouter)
 app.use('/api/oss', ossRouter)
 app.use('/api/match', matchRouter)
+app.use('/health', healthRouter)
+app.use('/user', userRouter)
+app.use('/post', postRouter)
+app.use('/oss', ossRouter)
+app.use('/match', matchRouter)
 
 app.use((req, res) => failure(res, '接口不存在', 404))
 app.use(errorMiddleware)

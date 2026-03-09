@@ -1,10 +1,24 @@
 const requiredEnv = ['MONGODB_URI', 'JWT_SECRET', 'CORS_ORIGIN']
 
+function normalizeOrigin(origin = '') {
+  return origin.trim().replace(/\/+$/, '')
+}
+
 function parseCorsOrigins(value) {
   return value
     .split(',')
-    .map((item) => item.trim())
+    .map((item) => normalizeOrigin(item))
     .filter(Boolean)
+}
+
+function isOriginAllowed(origin, allowedOrigins) {
+  const normalizedOrigin = normalizeOrigin(origin)
+  return allowedOrigins.some((allowed) => {
+    if (allowed.startsWith('*.')) {
+      return normalizedOrigin.endsWith(allowed.slice(1))
+    }
+    return allowed === normalizedOrigin
+  })
 }
 
 function validateEnv() {
@@ -18,4 +32,5 @@ function validateEnv() {
 module.exports = {
   validateEnv,
   parseCorsOrigins,
+  isOriginAllowed,
 }
